@@ -1,7 +1,10 @@
 import os
+import torch
+import random
 from data.base_dataset import BaseDataset, get_params, get_transform
 from data.image_folder import make_dataset
 from PIL import Image
+import torchvision.transforms as transforms
 
 
 class AlignedDataset(BaseDataset):
@@ -39,19 +42,36 @@ class AlignedDataset(BaseDataset):
         # read a image given a random integer index
         AB_path = self.AB_paths[index]
         AB = Image.open(AB_path).convert('RGB')
-        # split AB image into A and B
-        w, h = AB.size
-        w2 = int(w / 2)
-        A = AB.crop((0, 0, w2, h))
-        B = AB.crop((w2, 0, w, h))
 
-        # apply the same transform to both A and B
+        # RandomResizedCrop-like behavior. This was the simplest way to use the same randomness throughout all transforms.
+        scale_min, scale_max = 0.6, 1.0  # Scale range
+        w, h = AB.size
+        w4 = int(w / 4)
+
+        scale = random.uniform(scale_min, scale_max)
+        crop_width = int(w4 * scale)
+        crop_height = int(h * scale)
+
+        # Randomly choose the top-left corner of the cropping area for the entire batch
+        left_margin = random.randint(0, w4 - crop_width)
+        top_margin = random.randint(0, h - crop_height)
+
+        # Apply the same crop to each quarter of the image
+        A = AB.crop((left_margin, top_margin, left_margin + crop_width, top_margin + crop_height))
+        B = AB.crop((w4 + left_margin, top_margin, w4 + left_margin + crop_width, top_margin + crop_height))
+        C = AB.crop((w4*2 + left_margin, top_margin, w4*2 + left_margin + crop_width, top_margin + crop_height))
+        D = AB.crop((w4*3 + left_margin, top_margin, w4*3 + left_margin + crop_width, top_margin + crop_height))
+
         transform_params = get_params(self.opt, A.size)
-        A_transform = get_transform(self.opt, transform_params, grayscale=(self.input_nc == 1))
-        B_transform = get_transform(self.opt, transform_params, grayscale=(self.output_nc == 1))
+        flip = random.random() < 0.4
+        A_transform = get_transform(self.opt, transform_params, grayscale=(self.input_nc == 1), flip=flip)
+        B_transform = get_transform(self.opt, transform_params, grayscale=(self.output_nc == 1), flip=flip)
 
         A = A_transform(A)
         B = B_transform(B)
+        C = B_transform(C)
+        D = B_transform(D)
+        B = torch.cat((B, C, D))
 
         return {'A': A, 'B': B, 'A_paths': AB_path, 'B_paths': AB_path}
 

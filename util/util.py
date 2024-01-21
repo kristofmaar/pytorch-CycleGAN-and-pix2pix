@@ -21,13 +21,19 @@ def tensor2im(input_image, imtype=np.uint8):
         image_numpy = image_tensor[0].cpu().float().numpy()  # convert it into a numpy array
         if image_numpy.shape[0] == 1:  # grayscale to RGB
             image_numpy = np.tile(image_numpy, (3, 1, 1))
+        # Check if the image has 9 channels
+        if image_numpy.shape[0] == 9:
+            # Split the 9 channels into three 3-channel images
+            split_images = np.split(image_numpy, 3)
+            # Concatenate the images along the height axis (axis=1)
+            image_numpy = np.concatenate(split_images, axis=2)
         image_numpy = (np.transpose(image_numpy, (1, 2, 0)) + 1) / 2.0 * 255.0  # post-processing: tranpose and scaling
     else:  # if it is a numpy array, do nothing
         image_numpy = input_image
     return image_numpy.astype(imtype)
 
 
-def diagnose_network(net, name='network'):
+def diagnose_network(net, name='network'):  
     """Calculate and print the mean of average absolute(gradients)
 
     Parameters:

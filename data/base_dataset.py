@@ -78,8 +78,10 @@ def get_params(opt, size):
     return {'crop_pos': (x, y), 'flip': flip}
 
 
-def get_transform(opt, params=None, grayscale=False, method=transforms.InterpolationMode.BICUBIC, convert=True):
+def get_transform(opt, params=None, flip=False, grayscale=False, method=transforms.InterpolationMode.BICUBIC, convert=True):
     transform_list = []
+    if flip:
+        transform_list.append(transforms.RandomHorizontalFlip(p=1.0))
     if grayscale:
         transform_list.append(transforms.Grayscale(1))
     if 'resize' in opt.preprocess:

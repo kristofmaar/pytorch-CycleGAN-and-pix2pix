@@ -1,7 +1,7 @@
 from data.base_dataset import BaseDataset, get_transform
 from data.image_folder import make_dataset
 from PIL import Image
-
+import torch
 
 class SingleDataset(BaseDataset):
     """This dataset class can load a set of images specified by the path --dataroot /path/to/data.
@@ -31,8 +31,25 @@ class SingleDataset(BaseDataset):
             A_paths(str) - - the path of the image
         """
         A_path = self.A_paths[index]
-        A_img = Image.open(A_path).convert('RGB')
-        A = self.transform(A_img)
+        ABC_img = Image.open(A_path).convert('RGB')
+        
+        # Assuming the combined image is horizontally aligned (B, C, D)
+        w, h = ABC_img.size
+        w_third = int(w / 3)
+
+        # Crop B, C, D images from the combined image
+        B = ABC_img.crop((0, 0, w_third, h))
+        C = ABC_img.crop((w_third, 0, w_third * 2, h))
+        D = ABC_img.crop((w_third * 2, 0, w, h))
+
+        B = self.transform(B)
+        C = self.transform(C)
+        D = self.transform(D)
+
+        # Combine B, C, and D into one tensor (e.g., stacking)
+        # Adjust this according to how you want to combine these images
+        A = torch.cat([B, C, D], dim=0)  # Stacking along a new dimension
+
         return {'A': A, 'A_paths': A_path}
 
     def __len__(self):
